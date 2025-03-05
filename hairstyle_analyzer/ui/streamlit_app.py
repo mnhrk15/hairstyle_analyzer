@@ -80,7 +80,7 @@ def update_progress(current, total, message=""):
         st.session_state[SESSION_PROGRESS] = progress
 
 
-async def process_images(processor, image_paths, progress_callback=None):
+async def process_images(processor, image_paths, stylists=None, coupons=None, progress_callback=None):
     """画像処理を実行する関数"""
     results = []
     total = len(image_paths)
@@ -88,7 +88,7 @@ async def process_images(processor, image_paths, progress_callback=None):
     for i, image_path in enumerate(image_paths):
         try:
             # 1画像の処理
-            result = await processor.process_single_image(image_path)
+            result = await processor.process_single_image(image_path, stylists, coupons)
             results.append(result)
             
             # 進捗更新
@@ -207,6 +207,62 @@ def display_results(results):
     
     # データフレームを表示
     st.dataframe(df)
+    
+    # 各画像の詳細結果を表示
+    st.subheader("詳細結果")
+    
+    for i, result in enumerate(results):
+        with st.expander(f"画像 {i+1}: {result.image_name}"):
+            cols = st.columns(2)
+            
+            # 左カラム: 基本情報
+            with cols[0]:
+                st.write("### 基本情報")
+                st.write(f"**カテゴリ:** {result.style_analysis.category}")
+                st.write(f"**性別:** {result.attribute_analysis.sex}")
+                st.write(f"**長さ:** {result.attribute_analysis.length}")
+                
+                st.write("### スタイル特徴")
+                st.write(f"**髪色:** {result.style_analysis.features.color}")
+                st.write(f"**カット技法:** {result.style_analysis.features.cut_technique}")
+                st.write(f"**スタイリング:** {result.style_analysis.features.styling}")
+                st.write(f"**印象:** {result.style_analysis.features.impression}")
+                
+                if result.style_analysis.keywords:
+                    st.write("**キーワード:**")
+                    st.write(", ".join(result.style_analysis.keywords))
+            
+            # 右カラム: 選択結果
+            with cols[1]:
+                st.write("### 選択結果")
+                
+                # テンプレート
+                st.write("#### テンプレート")
+                st.write(f"**タイトル:** {result.selected_template.title}")
+                st.write(f"**メニュー:** {result.selected_template.menu}")
+                st.write(f"**コメント:** {result.selected_template.comment}")
+                if result.selected_template.hashtag:
+                    st.write(f"**ハッシュタグ:** {result.selected_template.hashtag}")
+                
+                # スタイリスト
+                st.write("#### スタイリスト")
+                st.write(f"**名前:** {result.selected_stylist.name}")
+                if hasattr(result.selected_stylist, 'specialties') and result.selected_stylist.specialties:
+                    st.write(f"**得意な技術・特徴:** {result.selected_stylist.specialties}")
+                if hasattr(result.selected_stylist, 'description') and result.selected_stylist.description:
+                    st.write(f"**説明:** {result.selected_stylist.description}")
+                if result.stylist_reason:
+                    st.write(f"**選択理由:** {result.stylist_reason}")
+                
+                # クーポン
+                st.write("#### クーポン")
+                st.write(f"**名前:** {result.selected_coupon.name}")
+                if hasattr(result.selected_coupon, 'price') and result.selected_coupon.price:
+                    st.write(f"**価格:** {result.selected_coupon.price}円")
+                if hasattr(result.selected_coupon, 'description') and result.selected_coupon.description:
+                    st.write(f"**説明:** {result.selected_coupon.description}")
+                if result.coupon_reason:
+                    st.write(f"**選択理由:** {result.coupon_reason}")
     
     # Excel出力ボタン
     if st.button("Excel出力"):
@@ -474,6 +530,14 @@ def render_main_content():
                 # 初期化
                 processor = st.session_state[SESSION_PROCESSOR]
                 
+                # スタイリストとクーポンデータの取得
+                stylists = st.session_state.get(SESSION_STYLISTS, [])
+                coupons = st.session_state.get(SESSION_COUPONS, [])
+                
+                # スタイリストとクーポンデータがない場合の警告
+                if not stylists or not coupons:
+                    st.warning("サロンデータが取得されていません。サイドバーからサロンURLを入力して「データ取得」ボタンをクリックしてください。")
+                
                 # 非同期処理を実行
                 with st.spinner("画像を処理中..."):
                     # 進捗コールバック関数
@@ -483,7 +547,7 @@ def render_main_content():
                         status_text.text(f"処理中: {current}/{total} ({int(progress * 100)}%)")
                     
                     # 処理の実行
-                    results = asyncio.run(process_images(processor, image_paths, update_progress))
+                    results = asyncio.run(process_images(processor, image_paths, stylists, coupons, update_progress))
                     
                     # 処理完了
                     progress_bar.progress(1.0)

@@ -82,6 +82,8 @@ class ProcessResult(BaseModel):
     selected_stylist: StylistInfo = Field(description="選択されたスタイリスト")
     selected_coupon: CouponInfo = Field(description="選択されたクーポン")
     processed_at: datetime = Field(default_factory=datetime.now, description="処理日時")
+    stylist_reason: Optional[str] = Field(default=None, description="スタイリスト選択理由")
+    coupon_reason: Optional[str] = Field(default=None, description="クーポン選択理由")
 
 
 class CacheEntry(BaseModel):

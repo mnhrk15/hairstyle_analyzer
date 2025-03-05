@@ -36,7 +36,7 @@ class StyleMatchingService:
     
     @async_with_error_handling(GeminiAPIError, "スタイリスト選択中にエラーが発生しました")
     async def select_stylist(self, image_path: Path, stylists: List[StylistInfoProtocol], 
-                            analysis: StyleAnalysisProtocol) -> Optional[StylistInfoProtocol]:
+                            analysis: StyleAnalysisProtocol) -> Tuple[Optional[StylistInfoProtocol], Optional[str]]:
         """
         画像と分析結果に基づいて最適なスタイリストを選択します。
         
@@ -46,7 +46,7 @@ class StyleMatchingService:
             analysis: 画像分析結果
             
         Returns:
-            選択されたスタイリスト、見つからない場合はNone
+            Tuple[選択されたスタイリスト, 選択理由]、見つからない場合はNone
             
         Raises:
             GeminiAPIError: API呼び出しに失敗した場合
@@ -56,11 +56,11 @@ class StyleMatchingService:
         
         if not stylists:
             self.logger.warning("スタイリストリストが空です")
-            return None
+            return None, None
         
         # Gemini APIを使用してスタイリストを選択
         try:
-            selected_stylist = await self.gemini_service.select_stylist(
+            selected_stylist, reason = await self.gemini_service.select_stylist(
                 image_path, stylists, analysis
             )
             
@@ -70,21 +70,22 @@ class StyleMatchingService:
                 self.logger.warning("スタイリストを選択できませんでした")
                 # フォールバック: 最初のスタイリストを返す
                 selected_stylist = stylists[0]
+                reason = "スタイリストを選択できなかったため、デフォルトのスタイリストを選択しました。"
                 self.logger.info(f"フォールバック: 最初のスタイリストを選択: {selected_stylist.name}")
             
-            return selected_stylist
+            return selected_stylist, reason
             
         except Exception as e:
             self.logger.error(f"スタイリスト選択エラー: {str(e)}")
             # エラー時には最初のスタイリストをフォールバックとして返す
             if stylists:
                 self.logger.info(f"エラー時のフォールバック: 最初のスタイリスト {stylists[0].name} を選択")
-                return stylists[0]
-            return None
+                return stylists[0], f"エラーが発生したため、デフォルトのスタイリストを選択しました: {str(e)}"
+            return None, None
     
     @async_with_error_handling(GeminiAPIError, "クーポン選択中にエラーが発生しました")
     async def select_coupon(self, image_path: Path, coupons: List[CouponInfoProtocol], 
-                           analysis: StyleAnalysisProtocol) -> Optional[CouponInfoProtocol]:
+                           analysis: StyleAnalysisProtocol) -> Tuple[Optional[CouponInfoProtocol], Optional[str]]:
         """
         画像と分析結果に基づいて最適なクーポンを選択します。
         
@@ -94,7 +95,7 @@ class StyleMatchingService:
             analysis: 画像分析結果
             
         Returns:
-            選択されたクーポン、見つからない場合はNone
+            Tuple[選択されたクーポン, 選択理由]、見つからない場合はNone
             
         Raises:
             GeminiAPIError: API呼び出しに失敗した場合
@@ -104,11 +105,11 @@ class StyleMatchingService:
         
         if not coupons:
             self.logger.warning("クーポンリストが空です")
-            return None
+            return None, None
         
         # Gemini APIを使用してクーポンを選択
         try:
-            selected_coupon = await self.gemini_service.select_coupon(
+            selected_coupon, reason = await self.gemini_service.select_coupon(
                 image_path, coupons, analysis
             )
             
@@ -118,17 +119,18 @@ class StyleMatchingService:
                 self.logger.warning("クーポンを選択できませんでした")
                 # フォールバック: 最初のクーポンを返す
                 selected_coupon = coupons[0]
+                reason = "クーポンを選択できなかったため、デフォルトのクーポンを選択しました。"
                 self.logger.info(f"フォールバック: 最初のクーポンを選択: {selected_coupon.name}")
             
-            return selected_coupon
+            return selected_coupon, reason
             
         except Exception as e:
             self.logger.error(f"クーポン選択エラー: {str(e)}")
             # エラー時には最初のクーポンをフォールバックとして返す
             if coupons:
                 self.logger.info(f"エラー時のフォールバック: 最初のクーポン {coupons[0].name} を選択")
-                return coupons[0]
-            return None
+                return coupons[0], f"エラーが発生したため、デフォルトのクーポンを選択しました: {str(e)}"
+            return None, None
     
     def match_by_text_similarity(self, target_text: str, candidates: List[str]) -> int:
         """

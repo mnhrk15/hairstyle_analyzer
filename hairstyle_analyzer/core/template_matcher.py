@@ -9,7 +9,7 @@ import logging
 import difflib
 from typing import List, Optional, Dict, Any, Tuple, Set
 
-from ..data.models import Template
+from ..data.models import Template, StyleAnalysis, StyleFeatures
 from ..data.interfaces import StyleAnalysisProtocol, TemplateManagerProtocol
 from ..utils.errors import TemplateError, with_error_handling
 
@@ -46,6 +46,19 @@ class TemplateMatcher:
         Raises:
             TemplateError: テンプレート処理中にエラーが発生した場合
         """
+        # 辞書型の場合はStyleAnalysisに変換
+        if isinstance(analysis, dict):
+            try:
+                features = StyleFeatures(**analysis.get('features', {}))
+                analysis = StyleAnalysis(
+                    category=analysis.get('category', ''),
+                    features=features,
+                    keywords=analysis.get('keywords', [])
+                )
+            except Exception as e:
+                self.logger.error(f"分析結果の変換に失敗しました: {e}")
+                raise TemplateError(f"分析結果の変換に失敗: {str(e)}")
+        
         self.logger.info(f"テンプレートマッチング開始: カテゴリ={analysis.category}")
         
         # テンプレートマネージャーを使用して最適なテンプレートを検索

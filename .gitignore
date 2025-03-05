@@ -50,6 +50,7 @@ data/raw/
 data/processed/
 models/trained/
 cache/
+cache/scraper_cache.json
 output/
 
 # Jupyter Notebook
