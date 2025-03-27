@@ -84,3 +84,6 @@ var/
 # Cursor
 .cursor/
 .cursor/rules
+
+.specstory/
+.pytest_cache/
